@@ -1,0 +1,8 @@
+# Node dependencies
+reactjs/node_modules/
+reactjs/dist/
+
+# Java / Maven builds
+activity1/target/
+activity1/.idea/
+activity1/*.iml

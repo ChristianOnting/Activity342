@@ -1,50 +1,71 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 export default function Login() {
-    
     const [credentials, setCredentials] = useState({ username: '', password: '' });
+    const [errors, setErrors] = useState({});
     const [message, setMessage] = useState('');
+
     const navigate = useNavigate();
+
+    const validate = () => {
+        let tempErrors = {};
+        if (!credentials.username.trim()) tempErrors.username = 'Username is required.';
+        if (!credentials.password.trim()) tempErrors.password = 'Password is required.';
+        setErrors(tempErrors);
+        return Object.keys(tempErrors).length === 0;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setMessage('');
+
+        if (!validate()) return;
+
         try {
-        const res = await axios.post('http://localhost:8080/login', credentials);
-        if (res.status === 200) {
-            navigate('/home');
+        const response = await axios.post('http://localhost:8080/login', credentials);
+        if (response.status === 200) {
+            // Redirect successfully logged-in user to Dashboard
+            navigate('/dashboard', { state: { username: credentials.username } });
         }
         } catch (err) {
-        setMessage(err.response?.data || 'Invalid credentials');
+        setMessage(err.response?.data || 'Invalid username or password.');
         }
     };
 
     return (
         <div>
-            <h2>Login</h2>
-            <form onSubmit={handleSubmit}>
+            <h2>User Login</h2>
+            <form onSubmit={handleSubmit} noValidate>
                 <div>
                     <label>Username: </label>
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         value={credentials.username}
-                        onChange={(e) => setCredentials({ ...credentials, username: e.target.value })} 
-                        required 
+                        onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                     />
+                    {errors.username && <span style={{ color: 'red' }}> {errors.username}</span>}
                 </div>
+                <br />
                 <div>
                     <label>Password: </label>
-                    <input 
-                        type="password" 
+                    <input
+                        type="password"
                         value={credentials.password}
-                        onChange={(e) => setCredentials({ ...credentials, password: e.target.value })} 
-                        required 
+                        onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                     />
-                    </div>
+                    {errors.password && <span style={{ color: 'red' }}> {errors.password}</span>}
+                </div>
+                <br />
                 <button type="submit">Login</button>
             </form>
-            <p>{message}</p>
+
+            {message && <p style={{ color: 'red' }}>{message}</p>}
+
+            <p>
+                Don't have an account? <Link to="/register">Go to Registration</Link>
+            </p>
         </div>
     );
 }

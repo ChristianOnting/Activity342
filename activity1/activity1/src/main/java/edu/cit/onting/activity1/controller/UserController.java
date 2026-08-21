@@ -36,10 +36,10 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> loginUser(@RequestBody User loginDtls){
+    public ResponseEntity<?> loginUser(@RequestBody User loginDtls){
         Optional<User> user = userRepository.findByUsername(loginDtls.getUsername());
         if(user.isPresent() && user.get().getPassword().equals(loginDtls.getPassword())){
-            return ResponseEntity.ok("Login is successful");
+            return ResponseEntity.ok(user.get());
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid login details");
     }

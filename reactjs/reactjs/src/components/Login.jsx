@@ -26,11 +26,11 @@ export default function Login() {
         try {
         const response = await axios.post('http://localhost:8080/login', credentials);
         if (response.status === 200) {
-            // Redirect successfully logged-in user to Dashboard
-            navigate('/dashboard', { state: { username: credentials.username } });
+            const userData = response.data;
+            navigate('/dashboard', { state: { username: userData.username, email: userData.email, userId: userData.userId} });
         }
         } catch (err) {
-        setMessage(err.response?.data || 'Invalid username or password.');
+            setMessage(err.response?.data || 'Invalid username or password.');
         }
     };
 

@@ -10,25 +10,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
+@RequestMapping("/api/users") // Updated to match /api/users/login and /api/users/register
 public class UserController {
 
     @Autowired
-    private  UserRepository userRepository;
+    private UserRepository userRepository;
 
-    @GetMapping("/user/{id}")
-    public ResponseEntity<?> getUserbyId(@PathVariable("id") Integer id){
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getUserbyId(@PathVariable("id") Integer id) {
         Optional<User> user = userRepository.findById(id);
-        if(user.isPresent()){
+        if (user.isPresent()) {
             return ResponseEntity.ok(user.get());
-        }else{
+        } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("user not found");
         }
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> registerUser(@RequestBody User user){
-        if (userRepository.findByUsername(user.getUsername()).isPresent()){
+    public ResponseEntity<String> registerUser(@RequestBody User user) {
+        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("user already exists");
         }
         userRepository.save(user);
@@ -36,11 +36,16 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> loginUser(@RequestBody User loginDtls){
-        Optional<User> user = userRepository.findByUsername(loginDtls.getUsername());
-        if(user.isPresent() && user.get().getPassword().equals(loginDtls.getPassword())){
-            return ResponseEntity.ok(user.get());
+    public ResponseEntity<?> loginUser(@RequestBody User loginRequest) {
+        Optional<User> userOptional = userRepository.findByUsername(loginRequest.getUsername());
+
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            if (user.getPassword().equals(loginRequest.getPassword())) {
+                return ResponseEntity.ok(user);
+            }
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid login details");
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password.");
     }
 }

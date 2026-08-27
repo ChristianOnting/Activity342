@@ -24,18 +24,42 @@ export default function Login() {
         if (!validate()) return;
 
         try {
-        const response = await axios.post('http://localhost:8080/login', credentials);
-        if (response.status === 200) {
-            const userData = response.data;
-            navigate('/dashboard', { state: { username: userData.username, email: userData.email, userId: userData.userId} });
-        }
+            // 1. Updated endpoint URL to match SecurityConfig permitAll matcher (/api/users/login)
+            const response = await axios.post('http://localhost:8080/api/users/login', credentials);
+            
+            if (response.status === 200) {
+                const userData = response.data;
+
+                // Normalize ID (handles both id and userId)
+                const resolvedUserId = userData.id || userData.userId;
+
+                // 2. Persist user session and basic credentials in localStorage for authenticated requests
+                localStorage.setItem('userId', resolvedUserId);
+                localStorage.setItem('username', userData.username);
+                localStorage.setItem('email', userData.email || '');
+                localStorage.setItem('password', credentials.password); // Used for Basic Auth header if needed
+
+                // 3. Navigate to dashboard with location state
+                navigate('/dashboard', { 
+                    state: { 
+                        username: userData.username, 
+                        email: userData.email, 
+                        userId: resolvedUserId 
+                    } 
+                });
+            }
         } catch (err) {
-            setMessage(err.response?.data || 'Invalid username or password.');
+            console.error('Login error:', err);
+            setMessage(
+                typeof err.response?.data === 'string' 
+                    ? err.response.data 
+                    : 'Invalid username or password.'
+            );
         }
     };
 
     return (
-        <div>
+        <div style={{ padding: '20px' }}>
             <h2>User Login</h2>
             <form onSubmit={handleSubmit} noValidate>
                 <div>
@@ -61,9 +85,9 @@ export default function Login() {
                 <button type="submit">Login</button>
             </form>
 
-            {message && <p style={{ color: 'red' }}>{message}</p>}
+            {message && <p style={{ color: 'red', marginTop: '10px' }}>{message}</p>}
 
-            <p>
+            <p style={{ marginTop: '15px' }}>
                 Don't have an account? <Link to="/register">Go to Registration</Link>
             </p>
         </div>

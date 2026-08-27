@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 export default function Register() {
@@ -7,6 +7,8 @@ export default function Register() {
     const [errors, setErrors] = useState({});
     const [message, setMessage] = useState('');
     const [isError, setIsError] = useState(false);
+
+    const navigate = useNavigate();
 
     const validate = () => {
         let tempErrors = {};
@@ -29,19 +31,37 @@ export default function Register() {
         if (!validate()) return;
 
         try {
-            const response = await axios.post('http://localhost:8080/register', formData);
+            // 1. Updated endpoint to match backend controller mapping (/api/users/register)
+            const response = await axios.post('http://localhost:8080/api/users/register', formData);
+            
             setIsError(false);
-            setMessage(response.data || 'User registered successfully!');
+            
+            // 2. Safe message parsing (handles text response or JSON objects)
+            const successMsg = typeof response.data === 'string' 
+                ? response.data 
+                : 'User registered successfully!';
+                
+            setMessage(successMsg);
             setFormData({ username: '', email: '', password: '' });
             setErrors({});
+
+            // Optional: Automatically navigate to login after 1.5 seconds
+            setTimeout(() => {
+                navigate('/login');
+            }, 1500);
+
         } catch (err) {
             setIsError(true);
-            setMessage(err.response?.data || 'Registration failed. Please try again.');
+            setMessage(
+                typeof err.response?.data === 'string' 
+                    ? err.response.data 
+                    : 'Registration failed. Please try again.'
+            );
         }
     };
 
     return (
-        <div>
+        <div style={{ padding: '20px' }}>
             <h2>User Registration</h2>
             <form onSubmit={handleSubmit} noValidate>
                 <div>
@@ -78,10 +98,10 @@ export default function Register() {
             </form>
 
             {message && (
-                <p style={{ color: isError ? 'red' : 'green' }}>{message}</p>
+                <p style={{ color: isError ? 'red' : 'green', marginTop: '10px' }}>{message}</p>
             )}
 
-            <p>
+            <p style={{ marginTop: '15px' }}>
                 Already have an account? <Link to="/login">Go to Login</Link>
             </p>
         </div>

@@ -1,9 +1,10 @@
 package edu.cit.onting.activity1.controller;
 
+import edu.cit.onting.activity1.dto.ServiceRequestDTO;
 import edu.cit.onting.activity1.model.ServiceRequest;
 import edu.cit.onting.activity1.model.User;
-import edu.cit.onting.activity1.repository.ServiceRequestRepository;
 import edu.cit.onting.activity1.repository.UserRepository;
+import edu.cit.onting.activity1.service.ServiceRequestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -14,89 +15,69 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/service-requests")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
 public class ServiceRequestController {
 
-    private final ServiceRequestRepository serviceRequestRepository;
+    private final ServiceRequestService serviceRequestService;
     private final UserRepository userRepository;
 
-    public ServiceRequestController(ServiceRequestRepository serviceRequestRepository, UserRepository userRepository) {
-        this.serviceRequestRepository = serviceRequestRepository;
+    public ServiceRequestController(ServiceRequestService serviceRequestService, UserRepository userRepository) {
+        this.serviceRequestService = serviceRequestService;
         this.userRepository = userRepository;
     }
 
-    // Helper method to get the authenticated user matching the active JWT
     private User getAuthenticatedUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
             return null;
         }
-        String username = authentication.getName();
-        return userRepository.findByUsername(username).orElse(null);
+        return userRepository.findByUsername(auth.getName()).orElse(null);
     }
 
-    // para create
     @PostMapping("/user/{userId}")
     public ResponseEntity<?> createRequest(@PathVariable Integer userId, @RequestBody ServiceRequest request) {
         User currentUser = getAuthenticatedUser();
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User authentication required.");
         }
-
-        // Ownership Check
         if (!currentUser.getUserId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("Access denied: You cannot create a service request for another user.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied.");
         }
 
-        request.setUser(currentUser);
-        ServiceRequest saved = serviceRequestRepository.save(request);
-        return ResponseEntity.ok(saved);
+        ServiceRequestDTO saved = serviceRequestService.createRequest(currentUser, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
-    // para read
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getRequestsByUser(@PathVariable Integer userId) {
         User currentUser = getAuthenticatedUser();
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User authentication required.");
         }
-
-        // Ownership Check
         if (!currentUser.getUserId().equals(userId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("Access denied: You cannot view another user's service requests.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied.");
         }
 
-        List<ServiceRequest> requests = serviceRequestRepository.findByUser_UserId(userId);
+        List<ServiceRequestDTO> requests = serviceRequestService.getRequestsByUserId(userId);
         return ResponseEntity.ok(requests);
     }
 
-    // para update
     @PutMapping("/{requestId}")
-    public ResponseEntity<?> updateRequest(@PathVariable Long requestId, @RequestBody ServiceRequest updatedDetails) {
+    public ResponseEntity<?> updateRequest(@PathVariable Long requestId, @RequestBody ServiceRequest details) {
         User currentUser = getAuthenticatedUser();
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User authentication required.");
         }
 
-        return serviceRequestRepository.findById(requestId).map(existing -> {
-            // Ownership Check
-            if (!existing.getUser().getUserId().equals(currentUser.getUserId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("Access denied: You cannot update another user's service request.");
-            }
-
-            existing.setTitle(updatedDetails.getTitle());
-            existing.setDescription(updatedDetails.getDescription());
-            if (updatedDetails.getStatus() != null) {
-                existing.setStatus(updatedDetails.getStatus());
-            }
-            ServiceRequest saved = serviceRequestRepository.save(existing);
-            return ResponseEntity.ok(saved);
-        }).orElse(ResponseEntity.notFound().build());
+        try {
+            return serviceRequestService.updateRequest(requestId, currentUser.getUserId(), details)
+                    .map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
-    // para delete
     @DeleteMapping("/{requestId}")
     public ResponseEntity<?> deleteRequest(@PathVariable Long requestId) {
         User currentUser = getAuthenticatedUser();
@@ -104,15 +85,14 @@ public class ServiceRequestController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User authentication required.");
         }
 
-        return serviceRequestRepository.findById(requestId).map(request -> {
-            // Ownership Check
-            if (!request.getUser().getUserId().equals(currentUser.getUserId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("Access denied: You cannot delete another user's service request.");
+        try {
+            boolean deleted = serviceRequestService.deleteRequest(requestId, currentUser.getUserId());
+            if (deleted) {
+                return ResponseEntity.ok("Service request deleted successfully.");
             }
-
-            serviceRequestRepository.delete(request);
-            return ResponseEntity.ok("Service request deleted successfully");
-        }).orElse(ResponseEntity.notFound().build());
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 }

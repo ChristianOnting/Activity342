@@ -6,6 +6,7 @@ export default function Login() {
     const [credentials, setCredentials] = useState({ username: '', password: '' });
     const [errors, setErrors] = useState({});
     const [message, setMessage] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const navigate = useNavigate();
 
@@ -19,42 +20,88 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage('');
+        setMessage('Attempting login...');
+        setIsSuccess(false);
 
-        if (!validate()) return;
+        if (!validate()) {
+            setMessage('Validation failed. Please check inputs.');
+            return;
+        }
 
         try {
-            // 1. Updated endpoint URL to match SecurityConfig permitAll matcher (/api/users/login)
+            console.log('Sending login request:', credentials);
             const response = await axios.post('http://localhost:8080/api/users/login', credentials);
             
+            console.log('Backend response:', response);
+
             if (response.status === 200) {
                 const userData = response.data;
+                console.log('User data payload:', userData);
 
-                // Normalize ID (handles both id and userId)
-                const resolvedUserId = userData.id || userData.userId;
+                // Handle string responses vs JSON object responses
+                let token = '';
+                let resolvedUserId = '';
+                let username = credentials.username;
+                let email = '';
 
-                // 2. Persist user session and basic credentials in localStorage for authenticated requests
-                localStorage.setItem('userId', resolvedUserId);
-                localStorage.setItem('username', userData.username);
-                localStorage.setItem('email', userData.email || '');
-                localStorage.setItem('password', credentials.password); // Used for Basic Auth header if needed
+                if (typeof userData === 'string') {
+                    token = userData; // If endpoint returns plain JWT string
+                } else if (typeof userData === 'object' && userData !== null) {
+                    token = userData.token || userData.jwt || userData.accessToken || '';
+                    resolvedUserId = userData.id || userData.userId || '';
+                    username = userData.username || credentials.username;
+                    email = userData.email || '';
+                }
 
-                // 3. Navigate to dashboard with location state
-                navigate('/dashboard', { 
-                    state: { 
-                        username: userData.username, 
-                        email: userData.email, 
-                        userId: resolvedUserId 
-                    } 
-                });
+                console.log('Extracted Token:', token);
+
+                if (!token) {
+                    setIsSuccess(false);
+                    setMessage('Login response received, but no JWT token was found in the payload.');
+                    return;
+                }
+
+                // 1. Save to LocalStorage
+                localStorage.setItem('token', token);
+                if (resolvedUserId) localStorage.setItem('userId', String(resolvedUserId));
+                if (username) localStorage.setItem('username', username);
+                if (email) localStorage.setItem('email', email);
+
+                setIsSuccess(true);
+                setMessage('Login successful! Redirecting to dashboard...');
+
+                // 2. Redirect after brief delay to allow reading screen feedback
+                setTimeout(() => {
+                    navigate('/dashboard', { 
+                        state: { 
+                            token: token,
+                            username: username, 
+                            email: email, 
+                            userId: resolvedUserId 
+                        } 
+                    });
+                }, 1000);
             }
         } catch (err) {
-            console.error('Login error:', err);
-            setMessage(
-                typeof err.response?.data === 'string' 
-                    ? err.response.data 
-                    : 'Invalid username or password.'
-            );
+            console.error('Full login error object:', err);
+            setIsSuccess(false);
+
+            if (err.response) {
+                // Server responded with non-2xx status code
+                const serverErr = err.response.data;
+                const status = err.response.status;
+                const errDetail = typeof serverErr === 'string' 
+                    ? serverErr 
+                    : JSON.stringify(serverErr);
+
+                setMessage(`Server Error (${status}): ${errDetail || 'Invalid credentials'}`);
+            } else if (err.request) {
+                // Request was made but no response was received (CORS, server down, connection refused)
+                setMessage('Network Error: Could not reach backend server at http://localhost:8080');
+            } else {
+                // Setup or runtime error
+                setMessage(`Request Error: ${err.message}`);
+            }
         }
     };
 
@@ -85,7 +132,16 @@ export default function Login() {
                 <button type="submit">Login</button>
             </form>
 
-            {message && <p style={{ color: 'red', marginTop: '10px' }}>{message}</p>}
+            {/* Detailed status messaging */}
+            {message && (
+                <p style={{ 
+                    color: isSuccess ? 'green' : 'red', 
+                    fontWeight: 'bold', 
+                    marginTop: '15px' 
+                }}>
+                    {message}
+                </p>
+            )}
 
             <p style={{ marginTop: '15px' }}>
                 Don't have an account? <Link to="/register">Go to Registration</Link>

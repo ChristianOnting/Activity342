@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -6,30 +6,12 @@ export default function Dashboard() {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // 1. Resolve user credentials and session info
-    const userId = location.state?.userId || localStorage.getItem('userId');
-    const username = location.state?.username || localStorage.getItem('username') || 'User';
-    const email = location.state?.email || localStorage.getItem('email') || 'Email';
-    const token = localStorage.getItem('token');
+    // Load initial values safely from localStorage
+    const [token, setToken] = useState(() => localStorage.getItem('token') || '');
+    const [userId, setUserId] = useState(() => localStorage.getItem('userId') || '');
+    const [username, setUsername] = useState(() => localStorage.getItem('username') || 'User');
+    const [email, setEmail] = useState(() => localStorage.getItem('email') || 'Email');
 
-    // Axios config using Bearer JWT authentication
-    const config = {
-        headers: {
-            Authorization: `Bearer ${token}`
-        }
-    };
-
-    // Store user session info locally when passed from Login
-    useEffect(() => {
-        if (location.state?.userId) {
-            localStorage.setItem('userId', location.state.userId);
-            if (location.state.username) localStorage.setItem('username', location.state.username);
-            if (location.state.email) localStorage.setItem('email', location.state.email);
-            if (location.state.token) localStorage.setItem('token', location.state.token);
-        }
-    }, [location.state]);
-
-    // CRUD state management
     const [requests, setRequests] = useState([]);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -37,51 +19,97 @@ export default function Dashboard() {
     const [editTitle, setEditTitle] = useState('');
     const [editDescription, setEditDescription] = useState('');
 
-    // Feedback message state
     const [statusMessage, setStatusMessage] = useState('');
     const [isError, setIsError] = useState(false);
 
     const API_URL = 'http://localhost:8080/api/service-requests';
 
-    // Helper to display status feedback
     const showFeedback = (msg, error = false) => {
         setStatusMessage(msg);
         setIsError(error);
     };
 
-    // 1. READ (Fetch all requests for this user)
-    const fetchRequests = async () => {
-        if (!userId) {
-            showFeedback('No user session found. Please log in again.', true);
-            return;
+    // 1. Process navigation state from Login ONCE on mount
+    useEffect(() => {
+        if (location.state?.token) {
+            localStorage.setItem('token', location.state.token);
+            setToken(location.state.token);
         }
+        if (location.state?.userId) {
+            localStorage.setItem('userId', String(location.state.userId));
+            setUserId(String(location.state.userId));
+        }
+        if (location.state?.username) {
+            localStorage.setItem('username', location.state.username);
+            setUsername(location.state.username);
+        }
+        if (location.state?.email) {
+            localStorage.setItem('email', location.state.email);
+            setEmail(location.state.email);
+        }
+    }, [location.state]);
+
+    // 2. Auth Guard: Redirect if no token is present
+    useEffect(() => {
+        const activeToken = token || localStorage.getItem('token');
+        if (!activeToken) {
+            navigate('/login');
+        }
+    }, [token, navigate]);
+
+    // Helper to generate dynamic request config with valid Bearer token
+    const getAuthHeader = useCallback(() => {
+        const activeToken = localStorage.getItem('token') || token;
+        return {
+            headers: {
+                'Authorization': `Bearer ${activeToken}`,
+                'Content-Type': 'application/json'
+            }
+        };
+    }, [token]);
+
+    // 3. READ (Fetch Requests)
+    const fetchRequests = useCallback(async () => {
+        const activeUserId = localStorage.getItem('userId') || userId;
+        const activeToken = localStorage.getItem('token') || token;
+
+        if (!activeUserId || !activeToken) return;
+
         try {
-            const response = await axios.get(`${API_URL}/user/${userId}`, config);
+            const response = await axios.get(`${API_URL}/user/${activeUserId}`, getAuthHeader());
             setRequests(response.data);
         } catch (err) {
             console.error('Error fetching requests:', err);
             showFeedback('Failed to load service requests.', true);
         }
-    };
+    }, [userId, token, getAuthHeader]);
 
     useEffect(() => {
-        if (token) {
+        const activeToken = localStorage.getItem('token') || token;
+        const activeUserId = localStorage.getItem('userId') || userId;
+        if (activeToken && activeUserId) {
             fetchRequests();
         }
-    }, [userId, token]);
+    }, [token, userId, fetchRequests]);
 
-    // 2. CREATE (Add a new service request)
+    // 4. CREATE
     const handleCreate = async (e) => {
         e.preventDefault();
         showFeedback('');
 
+        const activeUserId = localStorage.getItem('userId') || userId;
+        if (!activeUserId) {
+            showFeedback('User session missing. Please log in again.', true);
+            return;
+        }
+
         if (!title.trim() || !description.trim()) {
-            showFeedback('Submission failed: Title and Description cannot be empty.', true);
+            showFeedback('Title and Description cannot be empty.', true);
             return;
         }
 
         try {
-            await axios.post(`${API_URL}/user/${userId}`, { title, description }, config);
+            await axios.post(`${API_URL}/user/${activeUserId}`, { title, description }, getAuthHeader());
             setTitle('');
             setDescription('');
             showFeedback('Service request submitted successfully!');
@@ -92,14 +120,14 @@ export default function Dashboard() {
         }
     };
 
-    // 3. UPDATE (Save edited request)
+    // 5. UPDATE
     const handleUpdate = async (requestId) => {
         showFeedback('');
         try {
             await axios.put(
                 `${API_URL}/${requestId}`,
                 { title: editTitle, description: editDescription },
-                config
+                getAuthHeader()
             );
             setEditingId(null);
             setEditTitle('');
@@ -112,18 +140,17 @@ export default function Dashboard() {
         }
     };
 
-    // Cancel Edit Handler
     const handleCancelEdit = () => {
         setEditingId(null);
         setEditTitle('');
         setEditDescription('');
     };
 
-    // 4. DELETE (Remove request)
+    // 6. DELETE
     const handleDelete = async (requestId) => {
         showFeedback('');
         try {
-            await axios.delete(`${API_URL}/${requestId}`, config);
+            await axios.delete(`${API_URL}/${requestId}`, getAuthHeader());
             showFeedback('Service request deleted successfully!');
             fetchRequests();
         } catch (err) {
@@ -147,14 +174,12 @@ export default function Dashboard() {
 
             <hr />
 
-            {/* STATUS FEEDBACK DISPLAY */}
             {statusMessage && (
                 <p style={{ color: isError ? 'red' : 'green', fontWeight: 'bold' }}>
                     {statusMessage}
                 </p>
             )}
 
-            {/* CREATE FORM */}
             <h3>Create Service Request</h3>
             <form onSubmit={handleCreate}>
                 <div>
@@ -180,7 +205,6 @@ export default function Dashboard() {
 
             <hr />
 
-            {/* READ / VIEW LIST */}
             <h3>Your Service Requests</h3>
             {requests.length === 0 ? (
                 <p>No service requests found.</p>
@@ -189,7 +213,6 @@ export default function Dashboard() {
                     {requests.map((req) => (
                         <li key={req.id} style={{ marginBottom: '15px' }}>
                             {editingId === req.id ? (
-                                /* EDIT MODE */
                                 <div>
                                     <input
                                         type="text"
@@ -205,7 +228,6 @@ export default function Dashboard() {
                                     <button onClick={handleCancelEdit}>Cancel</button>
                                 </div>
                             ) : (
-                                /* VIEW MODE */
                                 <div>
                                     <strong>{req.title}</strong> - {req.description} [Status: {req.status}]
                                     {' '}

@@ -2,7 +2,6 @@ package edu.cit.onting.activity1.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(name = "service_requests")
@@ -21,11 +20,11 @@ public class ServiceRequest {
     @Column(nullable = false)
     private String status = "PENDING";
 
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})
     private User user;
 
     public ServiceRequest() {}

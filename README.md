@@ -47,17 +47,22 @@ Git
 
 ## Setup & Installation Instructions
 1. Clone the Repository
-    git clone [https://github.com/ChristianOnting/Activity342.git](https://github.com/ChristianOnting/Activity342.git)
-    cd Activity342
+        ```text
+        git clone [https://github.com/ChristianOnting/Activity342.git](https://github.com/ChristianOnting/Activity342.git)
+        cd Activity342
+        ```
 
 2. Backend Setup (Spring Boot)
--    Navigate to the backend directory:
-        cd activity1
+-       Navigate to the backend directory:
+                ```text 
+                cd activity1
+                ```
     
--    Configure database settings in src/main/resources/application.properties (if required):
+### Configure database settings in src/main/resources/application.properties (if required):
+        ```text
         server.port=8080
 
-        # Database configuration (Adjust if using MySQL instead of H2)
+        Database configuration (Adjust if using MySQL instead of H2)
         spring.datasource.url=jdbc:h2:mem:testdb
         spring.datasource.driverClassName=org.h2.Driver
         spring.datasource.username=sa
@@ -65,8 +70,9 @@ Git
         spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
         spring.h2.console.enabled=true
 
-        # JWT Configuration
+        JWT Configuration
         jwt.secret=YourSecretKeyHereForJWTGenerationAndValidation123456
+        ```
 
 -    Build and install dependencies:
         mvn clean install

@@ -32,6 +32,76 @@ A full-stack web application built using **Spring Boot** and **React** that allo
 
 ---
 
+## Prerequisites
+Before running the project, ensure you have the following installed on your machine:
+
+Java Development Kit (JDK 17 or higher)
+
+Apache Maven
+
+Node.js (v18 or higher) & npm
+
+Git
+
+---
+
+## Setup & Installation Instructions
+1. Clone the Repository
+    git clone [https://github.com/ChristianOnting/Activity342.git](https://github.com/ChristianOnting/Activity342.git)
+    cd Activity342
+
+2. Backend Setup (Spring Boot)
+-    Navigate to the backend directory:
+        cd activity1
+    
+-    Configure database settings in src/main/resources/application.properties (if required):
+        server.port=8080
+
+        # Database configuration (Adjust if using MySQL instead of H2)
+        spring.datasource.url=jdbc:h2:mem:testdb
+        spring.datasource.driverClassName=org.h2.Driver
+        spring.datasource.username=sa
+        spring.datasource.password=
+        spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+        spring.h2.console.enabled=true
+
+        # JWT Configuration
+        jwt.secret=YourSecretKeyHereForJWTGenerationAndValidation123456
+
+-    Build and install dependencies:
+        mvn clean install
+    
+-    Run the Spring Boot server:
+        mvn spring-boot:run
+
+3. Frontend Setup (React)
+-   Open a new terminal window and navigate to the frontend directory:
+        cd reactjs
+    
+-    Install the necessary node dependencies:
+        npm install
+
+-    Start the React development server:
+        npm run dev
+
+---
+
+## Application Usage & API Flow
+    Register: Create a new user account on the Registration page.
+
+    Login: Log in with your credentials. On success, the API returns a JWT token which is stored locally in localStorage.
+
+    Dashboard Access: Navigating to the Dashboard loads the user's service requests using the Bearer Token authentication.
+
+    CRUD Execution: Perform Create, Read, Edit, or Delete actions on service requests. Unauthorized access across users is intercepted and blocked with HTTP 403 Forbidden.
+
+---
+
+## Author
+- Christian Onting - https://github.com/ChristianOnting
+
+---
+
 ## Project Structure
 
 ```text
@@ -54,65 +124,3 @@ Activity342/
     │   ├── App.jsx
     │   └── main.jsx
     └── package.json
-
-Prerequisites
-Before running the project, ensure you have the following installed on your machine:
-
-Java Development Kit (JDK 17 or higher)
-
-Apache Maven
-
-Node.js (v18 or higher) & npm
-
-Git
-
-Setup & Installation Instructions
-1. Clone the Repository
-    git clone [https://github.com/ChristianOnting/Activity342.git](https://github.com/ChristianOnting/Activity342.git)
-    cd Activity342
-
-2. Backend Setup (Spring Boot)
-    Navigate to the backend directory:
-        cd activity1
-    
-    Configure database settings in src/main/resources/application.properties (if required):
-        server.port=8080
-
-        # Database configuration (Adjust if using MySQL instead of H2)
-        spring.datasource.url=jdbc:h2:mem:testdb
-        spring.datasource.driverClassName=org.h2.Driver
-        spring.datasource.username=sa
-        spring.datasource.password=
-        spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
-        spring.h2.console.enabled=true
-
-        # JWT Configuration
-        jwt.secret=YourSecretKeyHereForJWTGenerationAndValidation123456
-
-    Build and install dependencies:
-        mvn clean install
-    
-    Run the Spring Boot server:
-        mvn spring-boot:run
-
-3. Frontend Setup (React)
-    Open a new terminal window and navigate to the frontend directory:
-        cd reactjs
-    
-    Install the necessary node dependencies:
-        npm install
-
-    Start the React development server:
-        npm run dev
-    
-Application Usage & API Flow
-    Register: Create a new user account on the Registration page.
-
-    Login: Log in with your credentials. On success, the API returns a JWT token which is stored locally in localStorage.
-
-    Dashboard Access: Navigating to the Dashboard loads the user's service requests using the Bearer Token authentication.
-
-    CRUD Execution: Perform Create, Read, Edit, or Delete actions on service requests. Unauthorized access across users is intercepted and blocked with HTTP 403 Forbidden.
-
-Author
-Christian Onting - https://github.com/ChristianOnting
